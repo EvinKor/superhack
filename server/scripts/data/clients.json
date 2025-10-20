@@ -1,0 +1,59 @@
+[
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439021"},
+    "clientName": "TechCorp Industries",
+    "industry": "Manufacturing",
+    "contactPerson": "Robert Johnson",
+    "email": "robert.johnson@techcorp.com",
+    "phone": "+1-555-0101",
+    "status": "active",
+    "createdBy": "admin@msp-platform.com",
+    "createdAt": {"$date": "2024-01-10T09:00:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439022"},
+    "clientName": "FinanceFirst Bank",
+    "industry": "Financial Services",
+    "contactPerson": "Maria Garcia",
+    "email": "maria.garcia@financefirst.com",
+    "phone": "+1-555-0102",
+    "status": "active",
+    "createdBy": "sarah.manager@msp-platform.com",
+    "createdAt": {"$date": "2024-01-12T14:30:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439023"},
+    "clientName": "HealthCare Plus",
+    "industry": "Healthcare",
+    "contactPerson": "Dr. Jennifer Smith",
+    "email": "jennifer.smith@healthcareplus.com",
+    "phone": "+1-555-0103",
+    "status": "active",
+    "createdBy": "admin@msp-platform.com",
+    "createdAt": {"$date": "2024-01-14T11:15:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439024"},
+    "clientName": "RetailMax Stores",
+    "industry": "Retail",
+    "contactPerson": "David Wilson",
+    "email": "david.wilson@retailmax.com",
+    "phone": "+1-555-0104",
+    "status": "inactive",
+    "createdBy": "sarah.manager@msp-platform.com",
+    "createdAt": {"$date": "2024-01-08T16:45:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439025"},
+    "clientName": "EduTech Solutions",
+    "industry": "Education",
+    "contactPerson": "Professor Alan Brown",
+    "email": "alan.brown@edutech.edu",
+    "phone": "+1-555-0105",
+    "status": "active",
+    "createdBy": "admin@msp-platform.com",
+    "createdAt": {"$date": "2024-01-16T13:20:00.000Z"}
+  }
+]
+
+

@@ -1,0 +1,44 @@
+[
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439011"},
+    "name": "John Admin",
+    "email": "admin@msp-platform.com",
+    "role": "Admin",
+    "company": "MSP Solutions Inc",
+    "passwordHash": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4j4j4j4j4j4",
+    "createdAt": {"$date": "2024-01-15T10:00:00.000Z"},
+    "lastLogin": {"$date": "2024-01-20T09:30:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439012"},
+    "name": "Sarah Manager",
+    "email": "sarah.manager@msp-platform.com",
+    "role": "IT_Manager",
+    "company": "MSP Solutions Inc",
+    "passwordHash": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4j4j4j4j4j4",
+    "createdAt": {"$date": "2024-01-16T10:00:00.000Z"},
+    "lastLogin": {"$date": "2024-01-20T08:45:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439013"},
+    "name": "Mike Technician",
+    "email": "mike.tech@msp-platform.com",
+    "role": "Technician",
+    "company": "MSP Solutions Inc",
+    "passwordHash": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4j4j4j4j4j4",
+    "createdAt": {"$date": "2024-01-17T10:00:00.000Z"},
+    "lastLogin": {"$date": "2024-01-20T07:30:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439014"},
+    "name": "Lisa Support",
+    "email": "lisa.support@msp-platform.com",
+    "role": "Technician",
+    "company": "MSP Solutions Inc",
+    "passwordHash": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4j4j4j4j4j4",
+    "createdAt": {"$date": "2024-01-18T10:00:00.000Z"},
+    "lastLogin": {"$date": "2024-01-19T16:20:00.000Z"}
+  }
+]
+
+

@@ -1,0 +1,84 @@
+[
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439061"},
+    "userId": {"$oid": "507f1f77bcf86cd799439011"},
+    "action": "User Login",
+    "details": "Admin user logged into the system",
+    "timestamp": {"$date": "2024-01-20T09:30:00.000Z"},
+    "ipAddress": "192.168.1.100"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439062"},
+    "userId": {"$oid": "507f1f77bcf86cd799439012"},
+    "action": "Client Created",
+    "details": "Created new client: FinanceFirst Bank",
+    "timestamp": {"$date": "2024-01-12T14:30:00.000Z"},
+    "ipAddress": "192.168.1.101"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439063"},
+    "userId": {"$oid": "507f1f77bcf86cd799439013"},
+    "action": "Task Completed",
+    "details": "Resolved network connectivity issue for TechCorp Industries",
+    "timestamp": {"$date": "2024-01-20T11:45:00.000Z"},
+    "ipAddress": "192.168.1.102"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439064"},
+    "userId": {"$oid": "507f1f77bcf86cd799439014"},
+    "action": "Task Completed",
+    "details": "Implemented security patch for FinanceFirst Bank servers",
+    "timestamp": {"$date": "2024-01-20T13:20:00.000Z"},
+    "ipAddress": "192.168.1.103"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439065"},
+    "userId": {"$oid": "507f1f77bcf86cd799439011"},
+    "action": "User Created",
+    "details": "Created new technician account for Mike Technician",
+    "timestamp": {"$date": "2024-01-17T10:00:00.000Z"},
+    "ipAddress": "192.168.1.100"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439066"},
+    "userId": {"$oid": "507f1f77bcf86cd799439012"},
+    "action": "Report Generated",
+    "details": "Generated monthly financial insights report for all clients",
+    "timestamp": {"$date": "2024-01-31T23:59:59.000Z"},
+    "ipAddress": "192.168.1.101"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439067"},
+    "userId": {"$oid": "507f1f77bcf86cd799439013"},
+    "action": "Client Updated",
+    "details": "Updated contact information for TechCorp Industries",
+    "timestamp": {"$date": "2024-01-19T15:30:00.000Z"},
+    "ipAddress": "192.168.1.102"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439068"},
+    "userId": {"$oid": "507f1f77bcf86cd799439014"},
+    "action": "AI Report Viewed",
+    "details": "Viewed service optimization report for Lisa Support",
+    "timestamp": {"$date": "2024-01-31T15:45:00.000Z"},
+    "ipAddress": "192.168.1.103"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439069"},
+    "userId": {"$oid": "507f1f77bcf86cd799439011"},
+    "action": "System Configuration",
+    "details": "Updated system settings for AI report generation",
+    "timestamp": {"$date": "2024-01-18T16:00:00.000Z"},
+    "ipAddress": "192.168.1.100"
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439070"},
+    "userId": {"$oid": "507f1f77bcf86cd799439012"},
+    "action": "Password Changed",
+    "details": "User changed their password successfully",
+    "timestamp": {"$date": "2024-01-19T08:15:00.000Z"},
+    "ipAddress": "192.168.1.101"
+  }
+]
+
+

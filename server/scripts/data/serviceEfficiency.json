@@ -1,0 +1,60 @@
+[
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439041"},
+    "technicianId": {"$oid": "507f1f77bcf86cd799439013"},
+    "clientId": {"$oid": "507f1f77bcf86cd799439021"},
+    "tasksCompleted": 15,
+    "avgResponseTime": 45,
+    "avgResolutionTime": 120,
+    "aiSuggestions": [
+      "Implement automated ticket routing to reduce response time",
+      "Create knowledge base for common issues"
+    ],
+    "week": "2024-W04",
+    "createdAt": {"$date": "2024-01-28T18:00:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439042"},
+    "technicianId": {"$oid": "507f1f77bcf86cd799439014"},
+    "clientId": {"$oid": "507f1f77bcf86cd799439022"},
+    "tasksCompleted": 22,
+    "avgResponseTime": 30,
+    "avgResolutionTime": 90,
+    "aiSuggestions": [
+      "Excellent performance - consider mentoring other technicians",
+      "Document successful resolution patterns"
+    ],
+    "week": "2024-W04",
+    "createdAt": {"$date": "2024-01-28T18:00:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439043"},
+    "technicianId": {"$oid": "507f1f77bcf86cd799439013"},
+    "clientId": {"$oid": "507f1f77bcf86cd799439023"},
+    "tasksCompleted": 18,
+    "avgResponseTime": 60,
+    "avgResolutionTime": 150,
+    "aiSuggestions": [
+      "Healthcare compliance issues require specialized training",
+      "Consider pairing with senior technician for complex cases"
+    ],
+    "week": "2024-W04",
+    "createdAt": {"$date": "2024-01-28T18:00:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439044"},
+    "technicianId": {"$oid": "507f1f77bcf86cd799439014"},
+    "clientId": {"$oid": "507f1f77bcf86cd799439025"},
+    "tasksCompleted": 12,
+    "avgResponseTime": 25,
+    "avgResolutionTime": 75,
+    "aiSuggestions": [
+      "Educational environment allows for faster resolution",
+      "Consider implementing self-service options for students"
+    ],
+    "week": "2024-W04",
+    "createdAt": {"$date": "2024-01-28T18:00:00.000Z"}
+  }
+]
+
+

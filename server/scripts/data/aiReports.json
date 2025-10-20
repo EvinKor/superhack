@@ -1,0 +1,74 @@
+[
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439051"},
+    "reportType": "Financial Forecast",
+    "generatedForId": {"$oid": "507f1f77bcf86cd799439021"},
+    "generatedForType": "client",
+    "summary": "TechCorp Industries shows strong financial performance with 28.89% profit margin. Revenue growth is projected at 15% for Q2 2024 based on current trends and market analysis.",
+    "recommendations": [
+      "Invest in cloud infrastructure to reduce hardware maintenance costs by 25%",
+      "Implement automated monitoring systems to optimize labor allocation",
+      "Consider expanding service offerings to high-margin clients"
+    ],
+    "confidenceScore": 0.87,
+    "createdAt": {"$date": "2024-01-31T10:00:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439052"},
+    "reportType": "Service Optimization",
+    "generatedForId": {"$oid": "507f1f77bcf86cd799439013"},
+    "generatedForType": "user",
+    "summary": "Mike Technician demonstrates solid performance with 15 tasks completed in week 4. Response time of 45 minutes is within acceptable range, but resolution time of 120 minutes could be improved through better knowledge management.",
+    "recommendations": [
+      "Implement automated ticket categorization to reduce resolution time",
+      "Create knowledge base templates for common issues",
+      "Pair with senior technician for complex manufacturing IT issues"
+    ],
+    "confidenceScore": 0.82,
+    "createdAt": {"$date": "2024-01-31T11:30:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439053"},
+    "reportType": "Financial Forecast",
+    "generatedForId": {"$oid": "507f1f77bcf86cd799439022"},
+    "generatedForType": "client",
+    "summary": "FinanceFirst Bank maintains strong profitability at 27.42% margin. High cloud service costs present optimization opportunities. Revenue growth projected at 12% for Q2 2024.",
+    "recommendations": [
+      "Optimize cloud resource allocation to reduce costs by 20%",
+      "Implement cost monitoring dashboards for better visibility",
+      "Negotiate volume discounts with cloud service providers"
+    ],
+    "confidenceScore": 0.91,
+    "createdAt": {"$date": "2024-01-31T14:15:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439054"},
+    "reportType": "Service Optimization",
+    "generatedForId": {"$oid": "507f1f77bcf86cd799439014"},
+    "generatedForType": "user",
+    "summary": "Lisa Support shows excellent performance with 22 tasks completed and industry-leading response times. Her 30-minute average response and 90-minute resolution times set the standard for the team.",
+    "recommendations": [
+      "Document Lisa's successful resolution patterns for team training",
+      "Consider promoting to senior technician role",
+      "Use Lisa's methods as template for other technicians"
+    ],
+    "confidenceScore": 0.95,
+    "createdAt": {"$date": "2024-01-31T15:45:00.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439055"},
+    "reportType": "Financial Forecast",
+    "generatedForId": {"$oid": "507f1f77bcf86cd799439023"},
+    "generatedForType": "client",
+    "summary": "HealthCare Plus shows moderate profitability at 26.32% margin. Healthcare compliance requirements increase operational complexity. Revenue growth projected at 8% for Q2 2024.",
+    "recommendations": [
+      "Invest in compliance automation tools to reduce manual overhead",
+      "Implement predictive maintenance for healthcare hardware",
+      "Consider specialized healthcare IT training for technicians"
+    ],
+    "confidenceScore": 0.78,
+    "createdAt": {"$date": "2024-01-31T16:20:00.000Z"}
+  }
+]
+
+

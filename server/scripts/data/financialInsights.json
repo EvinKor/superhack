@@ -1,0 +1,80 @@
+[
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439031"},
+    "clientId": {"$oid": "507f1f77bcf86cd799439021"},
+    "month": "2024-01",
+    "revenue": 45000,
+    "expenses": 32000,
+    "profitMargin": 28.89,
+    "spendBreakdown": {
+      "softwareLicenses": 8000,
+      "hardwareMaintenance": 12000,
+      "cloudServices": 6000,
+      "laborCosts": 6000
+    },
+    "aiRecommendations": [
+      "Consider upgrading to cloud-based infrastructure to reduce hardware maintenance costs",
+      "Implement automated monitoring to reduce labor costs by 15%"
+    ],
+    "createdAt": {"$date": "2024-01-31T23:59:59.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439032"},
+    "clientId": {"$oid": "507f1f77bcf86cd799439022"},
+    "month": "2024-01",
+    "revenue": 62000,
+    "expenses": 45000,
+    "profitMargin": 27.42,
+    "spendBreakdown": {
+      "softwareLicenses": 12000,
+      "hardwareMaintenance": 8000,
+      "cloudServices": 15000,
+      "laborCosts": 10000
+    },
+    "aiRecommendations": [
+      "Optimize cloud service usage to reduce costs by 20%",
+      "Negotiate better software licensing terms"
+    ],
+    "createdAt": {"$date": "2024-01-31T23:59:59.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439033"},
+    "clientId": {"$oid": "507f1f77bcf86cd799439023"},
+    "month": "2024-01",
+    "revenue": 38000,
+    "expenses": 28000,
+    "profitMargin": 26.32,
+    "spendBreakdown": {
+      "softwareLicenses": 6000,
+      "hardwareMaintenance": 10000,
+      "cloudServices": 8000,
+      "laborCosts": 4000
+    },
+    "aiRecommendations": [
+      "Focus on compliance automation to reduce labor costs",
+      "Implement predictive maintenance for hardware"
+    ],
+    "createdAt": {"$date": "2024-01-31T23:59:59.000Z"}
+  },
+  {
+    "_id": {"$oid": "507f1f77bcf86cd799439034"},
+    "clientId": {"$oid": "507f1f77bcf86cd799439025"},
+    "month": "2024-01",
+    "revenue": 28000,
+    "expenses": 22000,
+    "profitMargin": 21.43,
+    "spendBreakdown": {
+      "softwareLicenses": 4000,
+      "hardwareMaintenance": 8000,
+      "cloudServices": 6000,
+      "laborCosts": 4000
+    },
+    "aiRecommendations": [
+      "Implement student self-service portal to reduce support tickets",
+      "Consider open-source alternatives for educational software"
+    ],
+    "createdAt": {"$date": "2024-01-31T23:59:59.000Z"}
+  }
+]
+
+
