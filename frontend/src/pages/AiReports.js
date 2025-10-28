@@ -27,9 +27,28 @@ const AiReports = () => {
     try {
       setLoading(true);
       const response = await api.get('/ai-reports');
-      setReports(response.data.reports);
+      const reportsData = response.data.reports || response.data || [];
+      
+      // Validate and sanitize report data
+      const validReports = Array.isArray(reportsData) ? reportsData.map(report => ({
+        _id: report._id || '',
+        title: report.title || '',
+        summary: report.summary || '',
+        type: report.reportType || report.type || '',
+        priority: report.priority || 'medium',
+        confidenceScore: report.confidenceScore || 0,
+        recommendations: report.recommendations || [],
+        createdAt: report.createdAt || new Date().toISOString()
+      })) : [];
+      
+      setReports(validReports);
     } catch (error) {
       console.error('Error fetching AI reports:', error);
+      setReports([]); // Set empty array on error
+      
+      if (error.response?.status === 401) {
+        console.log('Authentication required - redirecting to login');
+      }
     } finally {
       setLoading(false);
     }
@@ -59,8 +78,8 @@ const AiReports = () => {
   };
 
   const filteredReports = reports.filter(report => {
-    const matchesSearch = report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.summary.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (report.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (report.summary?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesType = !typeFilter || report.type === typeFilter;
     const matchesPriority = !priorityFilter || report.priority === priorityFilter;
     

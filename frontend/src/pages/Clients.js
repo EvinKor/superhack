@@ -52,9 +52,36 @@ const Clients = () => {
     try {
       setLoading(true);
       const response = await api.get('/clients');
-      setClients(response.data.clients);
+      // Ensure we have an array of clients with proper structure
+      const clientsData = response.data.clients || response.data || [];
+      
+      // Validate and sanitize client data
+      const validClients = Array.isArray(clientsData) ? clientsData.map(client => ({
+        _id: client._id || '',
+        name: client.clientName || client.name || '',
+        company: client.company || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        industry: client.industry || '',
+        status: client.status || 'active',
+        tier: client.tier || 'bronze',
+        contractValue: client.contractValue || 0,
+        contractStartDate: client.contractStartDate || '',
+        contractEndDate: client.contractEndDate || '',
+        address: client.address || {},
+        primaryContact: client.primaryContact || {},
+        createdAt: client.createdAt || new Date().toISOString()
+      })) : [];
+      
+      setClients(validClients);
     } catch (error) {
       console.error('Error fetching clients:', error);
+      setClients([]); // Set empty array on error
+      
+      // If it's an auth error, the interceptor will handle redirect
+      if (error.response?.status === 401) {
+        console.log('Authentication required - redirecting to login');
+      }
     } finally {
       setLoading(false);
     }
@@ -65,9 +92,9 @@ const Clients = () => {
   };
 
   const filteredClients = clients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (client.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (client.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (client.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesStatus = !statusFilter || client.status === statusFilter;
     const matchesTier = !tierFilter || client.tier === tierFilter;
     

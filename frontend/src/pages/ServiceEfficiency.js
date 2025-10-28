@@ -16,11 +16,7 @@ const ServiceEfficiency = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
 
-  useEffect(() => {
-    fetchEfficiencyData();
-  }, [selectedPeriod]);
-
-  const fetchEfficiencyData = async () => {
+  const fetchEfficiencyData = React.useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/service-efficiency/dashboard/overview?period=${selectedPeriod}`);
@@ -30,7 +26,11 @@ const ServiceEfficiency = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    fetchEfficiencyData();
+  }, [fetchEfficiencyData]);
 
   const MetricCard = ({ title, value, target, unit, icon: Icon, color = 'blue' }) => {
     const isAboveTarget = value >= target;

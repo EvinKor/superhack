@@ -1,10 +1,10 @@
 import {
-    ArrowDownIcon,
-    ArrowTrendingDownIcon,
-    ArrowTrendingUpIcon,
-    ArrowUpIcon,
-    CurrencyDollarIcon,
-    LightBulbIcon
+  ArrowDownIcon,
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowUpIcon,
+  CurrencyDollarIcon,
+  LightBulbIcon
 } from '@heroicons/react/24/outline';
 import React, { useEffect, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -15,11 +15,7 @@ const FinancialInsights = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
 
-  useEffect(() => {
-    fetchFinancialData();
-  }, [selectedPeriod]);
-
-  const fetchFinancialData = async () => {
+  const fetchFinancialData = React.useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/financial-insights/dashboard/summary?period=${selectedPeriod}`);
@@ -29,7 +25,11 @@ const FinancialInsights = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    fetchFinancialData();
+  }, [fetchFinancialData]);
 
   const MetricCard = ({ title, value, change, changeType, icon: Icon, color = 'blue' }) => {
     const colorClasses = {

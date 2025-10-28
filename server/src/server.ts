@@ -104,6 +104,15 @@ app.get('/manifest.json', (req, res) => {
   });
 });
 
+// Suppress common browser/dev tool 404s
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
+  res.status(204).end();
+});
+
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 // API documentation endpoint
 app.get('/api', (req, res) => {
   res.json({
