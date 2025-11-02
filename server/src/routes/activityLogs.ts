@@ -1,10 +1,10 @@
 import { Request, Response, Router } from 'express';
 import { authenticate, authorizeAllRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
-import { validateActivityLog, validateObjectId, validatePagination } from '../middleware/validation';
-import { ActivityLog } from '../models/ActivityLog';
-import { User } from '../models/User';
+import { validateActivityLog, validatePagination } from '../middleware/validation';
+import { ActivityLogInsert, ActivityLogUpdate } from '../models/ActivityLog';
 import { logger } from '../utils/logger';
+import { supabase, Tables } from '../utils/supabase';
 
 const router = Router();
 
@@ -19,36 +19,53 @@ router.get('/', authenticate, authorizeAllRoles, validatePagination, asyncHandle
   const startDate = req.query.startDate as string;
   const endDate = req.query.endDate as string;
 
-  // Build filter object
-  const filter: any = {};
-  if (userId) filter.userId = userId;
-  if (action) filter.action = new RegExp(action, 'i');
-  
-  if (startDate || endDate) {
-    filter.timestamp = {};
-    if (startDate) filter.timestamp.$gte = new Date(startDate);
-    if (endDate) filter.timestamp.$lte = new Date(endDate);
+  // Build query with user join
+  let query = supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .select(`
+      *,
+      user:user_id (
+        id,
+        name,
+        email,
+        role
+      )
+    `, { count: 'exact' });
+
+  // Apply filters
+  if (userId) {
+    query = query.eq('user_id', userId);
+  }
+  if (action) {
+    query = query.ilike('action', `%${action}%`);
+  }
+  if (startDate) {
+    query = query.gte('timestamp', startDate);
+  }
+  if (endDate) {
+    query = query.lte('timestamp', endDate);
   }
 
-  // Build sort object
-  const sort: any = {};
-  sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+  // Apply sorting
+  const ascending = sortOrder === 'asc';
+  query = query.order(sortBy, { ascending });
 
-  const skip = (page - 1) * limit;
+  // Apply pagination
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  query = query.range(from, to);
 
-  const [logs, total] = await Promise.all([
-    ActivityLog.find(filter)
-      .populate('userId', 'name email role')
-      .sort(sort)
-      .skip(skip)
-      .limit(limit),
-    ActivityLog.countDocuments(filter)
-  ]);
+  const { data: logs, error, count } = await query;
 
+  if (error) {
+    throw error;
+  }
+
+  const total = count || 0;
   const totalPages = Math.ceil(total / limit);
 
   res.json({
-    logs,
+    logs: logs || [],
     pagination: {
       currentPage: page,
       totalPages,
@@ -60,15 +77,30 @@ router.get('/', authenticate, authorizeAllRoles, validatePagination, asyncHandle
 }));
 
 // Get activity log by ID
-router.get('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandler(async (req: Request, res: Response) => {
-  const log = await ActivityLog.findById(req.params.id)
-    .populate('userId', 'name email role company');
-  
-  if (!log) {
-    return res.status(404).json({
-      error: 'Activity log not found',
-      details: 'Activity log with the specified ID does not exist'
-    });
+router.get('/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
+  const { data: log, error } = await supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .select(`
+      *,
+      user:user_id (
+        id,
+        name,
+        email,
+        role,
+        company
+      )
+    `)
+    .eq('id', req.params.id)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return res.status(404).json({
+        error: 'Activity log not found',
+        details: 'Activity log with the specified ID does not exist'
+      });
+    }
+    throw error;
   }
 
   res.json({ log });
@@ -77,19 +109,43 @@ router.get('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandl
 // Create new activity log
 router.post('/', authenticate, authorizeAllRoles, validateActivityLog, asyncHandler(async (req: Request, res: Response) => {
   // Verify user exists
-  const user = await User.findById(req.body.userId);
-  if (!user) {
+  const { data: user, error: userError } = await supabase
+    .from(Tables.USERS)
+    .select('id, email')
+    .eq('id', req.body.userId)
+    .single();
+
+  if (userError || !user) {
     return res.status(400).json({
       error: 'User not found',
       details: 'The specified user does not exist'
     });
   }
 
-  const log = new ActivityLog(req.body);
-  await log.save();
+  const newLog: ActivityLogInsert = {
+    user_id: req.body.userId,
+    action: req.body.action,
+    details: req.body.details,
+    timestamp: req.body.timestamp || new Date().toISOString(),
+    ip_address: req.body.ipAddress
+  };
 
-  // Populate user information
-  await log.populate('userId', 'name email role');
+  const { data: log, error: insertError } = await supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .insert(newLog)
+    .select(`
+      *,
+      user:user_id (
+        name,
+        email,
+        role
+      )
+    `)
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
 
   logger.info(`New activity log created: ${log.action} by ${user.email}`);
 
@@ -100,21 +156,40 @@ router.post('/', authenticate, authorizeAllRoles, validateActivityLog, asyncHand
 }));
 
 // Update activity log
-router.put('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandler(async (req: Request, res: Response) => {
-  const log = await ActivityLog.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true, runValidators: true }
-  ).populate('userId', 'name email role');
+router.put('/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
+  const updates: ActivityLogUpdate = {};
 
-  if (!log) {
-    return res.status(404).json({
-      error: 'Activity log not found',
-      details: 'Activity log with the specified ID does not exist'
-    });
+  if (req.body.userId) updates.user_id = req.body.userId;
+  if (req.body.action) updates.action = req.body.action;
+  if (req.body.details) updates.details = req.body.details;
+  if (req.body.timestamp) updates.timestamp = req.body.timestamp;
+  if (req.body.ipAddress) updates.ip_address = req.body.ipAddress;
+
+  const { data: log, error } = await supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .update(updates)
+    .eq('id', req.params.id)
+    .select(`
+      *,
+      user:user_id (
+        name,
+        email,
+        role
+      )
+    `)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return res.status(404).json({
+        error: 'Activity log not found',
+        details: 'Activity log with the specified ID does not exist'
+      });
+    }
+    throw error;
   }
 
-  logger.info(`Activity log updated by ${req.user!.email}: ${log._id}`);
+  logger.info(`Activity log updated by ${req.user!.email}: ${log.id}`);
 
   res.json({
     message: 'Activity log updated successfully',
@@ -123,17 +198,33 @@ router.put('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandl
 }));
 
 // Delete activity log
-router.delete('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandler(async (req: Request, res: Response) => {
-  const log = await ActivityLog.findByIdAndDelete(req.params.id);
-  
-  if (!log) {
-    return res.status(404).json({
-      error: 'Activity log not found',
-      details: 'Activity log with the specified ID does not exist'
-    });
+router.delete('/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
+  const { data: log, error: selectError } = await supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .select('id')
+    .eq('id', req.params.id)
+    .single();
+
+  if (selectError) {
+    if (selectError.code === 'PGRST116') {
+      return res.status(404).json({
+        error: 'Activity log not found',
+        details: 'Activity log with the specified ID does not exist'
+      });
+    }
+    throw selectError;
   }
 
-  logger.info(`Activity log deleted by ${req.user!.email}: ${log._id}`);
+  const { error: deleteError } = await supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .delete()
+    .eq('id', req.params.id);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  logger.info(`Activity log deleted by ${req.user!.email}: ${log.id}`);
 
   res.json({
     message: 'Activity log deleted successfully'
@@ -145,46 +236,83 @@ router.get('/feed/recent', authenticate, authorizeAllRoles, asyncHandler(async (
   const limit = parseInt(req.query.limit as string) || 20;
   const userId = req.query.userId as string;
 
-  const filter: any = {};
-  if (userId) filter.userId = userId;
-
-  const recentActivity = await ActivityLog.find(filter)
-    .populate('userId', 'name email role')
-    .sort({ timestamp: -1 })
+  let query = supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .select(`
+      *,
+      user:user_id (
+        name,
+        email,
+        role
+      )
+    `)
+    .order('timestamp', { ascending: false })
     .limit(limit);
 
+  if (userId) {
+    query = query.eq('user_id', userId);
+  }
+
+  const { data: recentActivity, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
   res.json({
-    recentActivity,
+    recentActivity: recentActivity || [],
     limit
   });
 }));
 
 // Get user activity summary
-router.get('/analytics/user-activity/:userId', authenticate, authorizeAllRoles, validateObjectId, asyncHandler(async (req: Request, res: Response) => {
+router.get('/analytics/user-activity/:userId', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const days = parseInt(req.query.days as string) || 30;
 
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  const userActivity = await ActivityLog.aggregate([
-    { $match: { userId: new require('mongoose').Types.ObjectId(userId), timestamp: { $gte: startDate } } },
-    {
-      $group: {
-        _id: '$action',
-        count: { $sum: 1 },
-        lastActivity: { $max: '$timestamp' }
-      }
-    },
-    { $sort: { count: -1 } }
-  ]);
+  const { data: activities, error } = await supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .select('*')
+    .eq('user_id', userId)
+    .gte('timestamp', startDate.toISOString());
 
-  const totalActivities = await ActivityLog.countDocuments({
-    userId: new require('mongoose').Types.ObjectId(userId),
-    timestamp: { $gte: startDate }
+  if (error) {
+    throw error;
+  }
+
+  // Group by action
+  const actionMap = new Map();
+  activities?.forEach((activity: any) => {
+    const action = activity.action;
+    if (!actionMap.has(action)) {
+      actionMap.set(action, {
+        _id: action,
+        count: 0,
+        lastActivity: activity.timestamp
+      });
+    }
+    const actionData = actionMap.get(action);
+    actionData.count++;
+    if (new Date(activity.timestamp) > new Date(actionData.lastActivity)) {
+      actionData.lastActivity = activity.timestamp;
+    }
   });
 
-  const user = await User.findById(userId).select('name email role');
+  const userActivity = Array.from(actionMap.values()).sort((a, b) => b.count - a.count);
+  const totalActivities = activities?.length || 0;
+
+  const { data: user, error: userError } = await supabase
+    .from(Tables.USERS)
+    .select('id, name, email, role')
+    .eq('id', userId)
+    .single();
+
+  if (userError) {
+    throw userError;
+  }
 
   res.json({
     user,
@@ -196,50 +324,94 @@ router.get('/analytics/user-activity/:userId', authenticate, authorizeAllRoles, 
 
 // Get activity statistics
 router.get('/stats/overview', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
-  const [totalLogs, actionStats, userActivity, recentActivity] = await Promise.all([
-    ActivityLog.countDocuments(),
-    ActivityLog.aggregate([
-      { $group: { _id: '$action', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 10 }
-    ]),
-    ActivityLog.aggregate([
-      {
-        $group: {
-          _id: '$userId',
-          activityCount: { $sum: 1 },
-          lastActivity: { $max: '$timestamp' }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user'
-        }
-      },
-      {
-        $addFields: {
-          userName: { $arrayElemAt: ['$user.name', 0] },
-          userEmail: { $arrayElemAt: ['$user.email', 0] }
-        }
-      },
-      { $sort: { activityCount: -1 } },
-      { $limit: 10 }
-    ]),
-    ActivityLog.find()
-      .populate('userId', 'name email role')
-      .sort({ timestamp: -1 })
-      .limit(10)
-      .select('action details timestamp userId')
-  ]);
+  const { data: allLogs, error, count } = await supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .select('*', { count: 'exact' });
+
+  if (error) {
+    throw error;
+  }
+
+  const totalLogs = count || 0;
+
+  // Calculate action stats
+  const actionMap = new Map();
+  allLogs?.forEach((log: any) => {
+    actionMap.set(log.action, (actionMap.get(log.action) || 0) + 1);
+  });
+
+  const actionStats = Array.from(actionMap.entries())
+    .map(([_id, count]) => ({ _id, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // Calculate user activity
+  const userMap = new Map();
+  allLogs?.forEach((log: any) => {
+    if (!userMap.has(log.user_id)) {
+      userMap.set(log.user_id, {
+        activityCount: 0,
+        lastActivity: log.timestamp
+      });
+    }
+    const userData = userMap.get(log.user_id);
+    userData.activityCount++;
+    if (new Date(log.timestamp) > new Date(userData.lastActivity)) {
+      userData.lastActivity = log.timestamp;
+    }
+  });
+
+  const topUserIds = Array.from(userMap.entries())
+    .sort((a, b) => b[1].activityCount - a[1].activityCount)
+    .slice(0, 10)
+    .map(([id]) => id);
+
+  let userActivity: any[] = [];
+  if (topUserIds.length > 0) {
+    const { data: users } = await supabase
+      .from(Tables.USERS)
+      .select('id, name, email')
+      .in('id', topUserIds);
+
+    userActivity = topUserIds.map(userId => {
+      const user = users?.find((u: any) => u.id === userId);
+      const stats = userMap.get(userId);
+      return {
+        _id: userId,
+        userName: user?.name || 'Unknown',
+        userEmail: user?.email || '',
+        activityCount: stats.activityCount,
+        lastActivity: stats.lastActivity
+      };
+    });
+  }
+
+  // Get recent activity
+  const { data: recentActivity, error: recentError } = await supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .select(`
+      id,
+      action,
+      details,
+      timestamp,
+      user:user_id (
+        name,
+        email,
+        role
+      )
+    `)
+    .order('timestamp', { ascending: false })
+    .limit(10);
+
+  if (recentError) {
+    throw recentError;
+  }
 
   res.json({
     totalLogs,
     actionStats,
     userActivity,
-    recentActivity
+    recentActivity: recentActivity || []
   });
 }));
 
@@ -251,22 +423,41 @@ router.get('/analytics/trends', authenticate, authorizeAllRoles, asyncHandler(as
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  const filter: any = { timestamp: { $gte: startDate } };
-  if (action) filter.action = new RegExp(action, 'i');
+  let query = supabase
+    .from(Tables.ACTIVITY_LOGS)
+    .select('action, timestamp')
+    .gte('timestamp', startDate.toISOString());
 
-  const trends = await ActivityLog.aggregate([
-    { $match: filter },
-    {
-      $group: {
+  if (action) {
+    query = query.ilike('action', `%${action}%`);
+  }
+
+  const { data: activities, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  // Group by date and action
+  const trendMap = new Map();
+  activities?.forEach((activity: any) => {
+    const date = activity.timestamp.substring(0, 10); // YYYY-MM-DD
+    const key = `${date}|${activity.action}`;
+    
+    if (!trendMap.has(key)) {
+      trendMap.set(key, {
         _id: {
-          date: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
-          action: '$action'
+          date,
+          action: activity.action
         },
-        count: { $sum: 1 }
-      }
-    },
-    { $sort: { '_id.date': 1 } }
-  ]);
+        count: 0
+      });
+    }
+    trendMap.get(key).count++;
+  });
+
+  const trends = Array.from(trendMap.values())
+    .sort((a, b) => a._id.date.localeCompare(b._id.date));
 
   res.json({
     trends,
@@ -275,5 +466,3 @@ router.get('/analytics/trends', authenticate, authorizeAllRoles, asyncHandler(as
 }));
 
 export default router;
-
-

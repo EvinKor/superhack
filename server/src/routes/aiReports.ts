@@ -1,11 +1,10 @@
 import { Request, Response, Router } from 'express';
 import { authenticate, authorizeAllRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
-import { validateAiReport, validateObjectId, validatePagination } from '../middleware/validation';
-import { AiReport } from '../models/AiReport';
-import { Client } from '../models/Client';
-import { User } from '../models/User';
+import { validateAiReport, validatePagination } from '../middleware/validation';
+import { AiReportInsert, AiReportUpdate } from '../models/AiReport';
 import { logger } from '../utils/logger';
+import { supabase, Tables } from '../utils/supabase';
 
 const router = Router();
 
@@ -13,52 +12,70 @@ const router = Router();
 router.get('/', authenticate, authorizeAllRoles, validatePagination, asyncHandler(async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
-  const sortBy = (req.query.sortBy as string) || 'createdAt';
+  const sortBy = (req.query.sortBy as string) || 'created_at';
   const sortOrder = (req.query.sortOrder as string) || 'desc';
   const reportType = req.query.reportType as string;
   const generatedForType = req.query.generatedForType as string;
   const generatedForId = req.query.generatedForId as string;
 
-  // Build filter object
-  const filter: any = {};
-  if (reportType) filter.reportType = reportType;
-  if (generatedForType) filter.generatedForType = generatedForType;
-  if (generatedForId) filter.generatedForId = generatedForId;
+  // Build query
+  let query = supabase.from(Tables.AI_REPORTS).select('*', { count: 'exact' });
 
-  // Build sort object
-  const sort: any = {};
-  sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+  // Apply filters
+  if (reportType) {
+    query = query.eq('report_type', reportType);
+  }
+  if (generatedForType) {
+    query = query.eq('generated_for_type', generatedForType);
+  }
+  if (generatedForId) {
+    query = query.eq('generated_for_id', generatedForId);
+  }
 
-  const skip = (page - 1) * limit;
+  // Apply sorting
+  const ascending = sortOrder === 'asc';
+  query = query.order(sortBy, { ascending });
 
-  const [reports, total] = await Promise.all([
-    AiReport.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(limit),
-    AiReport.countDocuments(filter)
-  ]);
+  // Apply pagination
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  query = query.range(from, to);
 
-  // Populate target information based on generatedForType
+  const { data: reports, error, count } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  // Populate target information
   const populatedReports = await Promise.all(
-    reports.map(async (report) => {
+    (reports || []).map(async (report: any) => {
       let targetInfo = null;
       
-      if (report.generatedForType === 'client') {
-        const client = await Client.findById(report.generatedForId).select('clientName industry');
+      if (report.generated_for_type === 'client') {
+        const { data: client } = await supabase
+          .from(Tables.CLIENTS)
+          .select('id, client_name, industry')
+          .eq('id', report.generated_for_id)
+          .single();
         targetInfo = client;
-      } else if (report.generatedForType === 'user') {
-        const user = await User.findById(report.generatedForId).select('name email role');
+      } else if (report.generated_for_type === 'user') {
+        const { data: user } = await supabase
+          .from(Tables.USERS)
+          .select('id, name, email, role')
+          .eq('id', report.generated_for_id)
+          .single();
         targetInfo = user;
       }
 
       return {
-        ...report.toObject(),
+        ...report,
         target: targetInfo
       };
     })
   );
 
+  const total = count || 0;
   const totalPages = Math.ceil(total / limit);
 
   res.json({
@@ -74,27 +91,44 @@ router.get('/', authenticate, authorizeAllRoles, validatePagination, asyncHandle
 }));
 
 // Get AI report by ID
-router.get('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandler(async (req: Request, res: Response) => {
-  const report = await AiReport.findById(req.params.id);
-  
-  if (!report) {
-    return res.status(404).json({
-      error: 'AI report not found',
-      details: 'AI report with the specified ID does not exist'
-    });
+router.get('/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
+  const { data: report, error } = await supabase
+    .from(Tables.AI_REPORTS)
+    .select('*')
+    .eq('id', req.params.id)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return res.status(404).json({
+        error: 'AI report not found',
+        details: 'AI report with the specified ID does not exist'
+      });
+    }
+    throw error;
   }
 
   // Populate target information
   let targetInfo = null;
-  if (report.generatedForType === 'client') {
-    targetInfo = await Client.findById(report.generatedForId).select('clientName industry contactPerson email');
-  } else if (report.generatedForType === 'user') {
-    targetInfo = await User.findById(report.generatedForId).select('name email role company');
+  if (report.generated_for_type === 'client') {
+    const { data: client } = await supabase
+      .from(Tables.CLIENTS)
+      .select('id, client_name, industry, contact_person, email')
+      .eq('id', report.generated_for_id)
+      .single();
+    targetInfo = client;
+  } else if (report.generated_for_type === 'user') {
+    const { data: user } = await supabase
+      .from(Tables.USERS)
+      .select('id, name, email, role, company')
+      .eq('id', report.generated_for_id)
+      .single();
+    targetInfo = user;
   }
 
-  res.json({ 
+  res.json({
     report: {
-      ...report.toObject(),
+      ...report,
       target: targetInfo
     }
   });
@@ -105,11 +139,19 @@ router.post('/', authenticate, authorizeAllRoles, validateAiReport, asyncHandler
   // Verify target exists
   let targetExists = false;
   if (req.body.generatedForType === 'client') {
-    const client = await Client.findById(req.body.generatedForId);
-    targetExists = !!client;
+    const { data: client, error } = await supabase
+      .from(Tables.CLIENTS)
+      .select('id')
+      .eq('id', req.body.generatedForId)
+      .single();
+    targetExists = !!client && !error;
   } else if (req.body.generatedForType === 'user') {
-    const user = await User.findById(req.body.generatedForId);
-    targetExists = !!user;
+    const { data: user, error } = await supabase
+      .from(Tables.USERS)
+      .select('id')
+      .eq('id', req.body.generatedForId)
+      .single();
+    targetExists = !!user && !error;
   }
 
   if (!targetExists) {
@@ -119,10 +161,27 @@ router.post('/', authenticate, authorizeAllRoles, validateAiReport, asyncHandler
     });
   }
 
-  const report = new AiReport(req.body);
-  await report.save();
+  const newReport: AiReportInsert = {
+    report_type: req.body.reportType,
+    generated_for_id: req.body.generatedForId,
+    generated_for_type: req.body.generatedForType,
+    summary: req.body.summary,
+    recommendations: req.body.recommendations || [],
+    confidence_score: req.body.confidenceScore,
+    created_at: new Date().toISOString()
+  };
 
-  logger.info(`New AI report created by ${req.user!.email}: ${report.reportType}`);
+  const { data: report, error: insertError } = await supabase
+    .from(Tables.AI_REPORTS)
+    .insert(newReport)
+    .select()
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  logger.info(`New AI report created by ${req.user!.email}: ${report.report_type}`);
 
   res.status(201).json({
     message: 'AI report created successfully',
@@ -131,21 +190,34 @@ router.post('/', authenticate, authorizeAllRoles, validateAiReport, asyncHandler
 }));
 
 // Update AI report
-router.put('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandler(async (req: Request, res: Response) => {
-  const report = await AiReport.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true, runValidators: true }
-  );
+router.put('/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
+  const updates: AiReportUpdate = {};
 
-  if (!report) {
-    return res.status(404).json({
-      error: 'AI report not found',
-      details: 'AI report with the specified ID does not exist'
-    });
+  if (req.body.reportType) updates.report_type = req.body.reportType;
+  if (req.body.generatedForId) updates.generated_for_id = req.body.generatedForId;
+  if (req.body.generatedForType) updates.generated_for_type = req.body.generatedForType;
+  if (req.body.summary) updates.summary = req.body.summary;
+  if (req.body.recommendations) updates.recommendations = req.body.recommendations;
+  if (req.body.confidenceScore !== undefined) updates.confidence_score = req.body.confidenceScore;
+
+  const { data: report, error } = await supabase
+    .from(Tables.AI_REPORTS)
+    .update(updates)
+    .eq('id', req.params.id)
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return res.status(404).json({
+        error: 'AI report not found',
+        details: 'AI report with the specified ID does not exist'
+      });
+    }
+    throw error;
   }
 
-  logger.info(`AI report updated by ${req.user!.email}: ${report._id}`);
+  logger.info(`AI report updated by ${req.user!.email}: ${report.id}`);
 
   res.json({
     message: 'AI report updated successfully',
@@ -154,25 +226,41 @@ router.put('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandl
 }));
 
 // Delete AI report
-router.delete('/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandler(async (req: Request, res: Response) => {
-  const report = await AiReport.findByIdAndDelete(req.params.id);
-  
-  if (!report) {
-    return res.status(404).json({
-      error: 'AI report not found',
-      details: 'AI report with the specified ID does not exist'
-    });
+router.delete('/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
+  const { data: report, error: selectError } = await supabase
+    .from(Tables.AI_REPORTS)
+    .select('id')
+    .eq('id', req.params.id)
+    .single();
+
+  if (selectError) {
+    if (selectError.code === 'PGRST116') {
+      return res.status(404).json({
+        error: 'AI report not found',
+        details: 'AI report with the specified ID does not exist'
+      });
+    }
+    throw selectError;
   }
 
-  logger.info(`AI report deleted by ${req.user!.email}: ${report._id}`);
+  const { error: deleteError } = await supabase
+    .from(Tables.AI_REPORTS)
+    .delete()
+    .eq('id', req.params.id);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  logger.info(`AI report deleted by ${req.user!.email}: ${report.id}`);
 
   res.json({
     message: 'AI report deleted successfully'
   });
 }));
 
-// Get AI reports by target (client or user)
-router.get('/target/:type/:id', authenticate, authorizeAllRoles, validateObjectId, asyncHandler(async (req: Request, res: Response) => {
+// Get AI reports by target
+router.get('/target/:type/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
   const { type, id } = req.params;
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
@@ -184,25 +272,26 @@ router.get('/target/:type/:id', authenticate, authorizeAllRoles, validateObjectI
     });
   }
 
-  const filter = {
-    generatedForType: type,
-    generatedForId: id
-  };
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
-  const skip = (page - 1) * limit;
+  const { data: reports, error, count } = await supabase
+    .from(Tables.AI_REPORTS)
+    .select('*', { count: 'exact' })
+    .eq('generated_for_type', type)
+    .eq('generated_for_id', id)
+    .order('created_at', { ascending: false })
+    .range(from, to);
 
-  const [reports, total] = await Promise.all([
-    AiReport.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
-    AiReport.countDocuments(filter)
-  ]);
+  if (error) {
+    throw error;
+  }
 
+  const total = count || 0;
   const totalPages = Math.ceil(total / limit);
 
   res.json({
-    reports,
+    reports: reports || [],
     target: { type, id },
     pagination: {
       currentPage: page,
@@ -216,47 +305,64 @@ router.get('/target/:type/:id', authenticate, authorizeAllRoles, validateObjectI
 
 // Get AI reports analytics
 router.get('/analytics/overview', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
-  const [totalReports, reportTypeStats, confidenceStats, recentReports] = await Promise.all([
-    AiReport.countDocuments(),
-    AiReport.aggregate([
-      { $group: { _id: '$reportType', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]),
-    AiReport.aggregate([
-      {
-        $group: {
-          _id: null,
-          avgConfidence: { $avg: '$confidenceScore' },
-          maxConfidence: { $max: '$confidenceScore' },
-          minConfidence: { $min: '$confidenceScore' }
-        }
-      }
-    ]),
-    AiReport.find()
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select('reportType summary confidenceScore createdAt')
-  ]);
+  const { data: allReports, error, count } = await supabase
+    .from(Tables.AI_REPORTS)
+    .select('*', { count: 'exact' });
 
-  const confidenceDistribution = await AiReport.aggregate([
-    {
-      $bucket: {
-        groupBy: '$confidenceScore',
-        boundaries: [0, 0.2, 0.4, 0.6, 0.8, 1.0],
-        default: 'Other',
-        output: {
-          count: { $sum: 1 }
-        }
-      }
-    }
-  ]);
+  if (error) {
+    throw error;
+  }
+
+  const totalReports = count || 0;
+
+  // Calculate stats
+  const reportTypeMap = new Map();
+  let totalConfidence = 0;
+  let maxConfidence = 0;
+  let minConfidence = 1;
+  const confidenceBuckets = { low: 0, medium: 0, high: 0, veryHigh: 0 };
+
+  allReports?.forEach((report: any) => {
+    // Report type stats
+    reportTypeMap.set(report.report_type, (reportTypeMap.get(report.report_type) || 0) + 1);
+    
+    // Confidence stats
+    totalConfidence += report.confidence_score;
+    maxConfidence = Math.max(maxConfidence, report.confidence_score);
+    minConfidence = Math.min(minConfidence, report.confidence_score);
+    
+    // Confidence distribution
+    if (report.confidence_score < 0.2) confidenceBuckets.low++;
+    else if (report.confidence_score < 0.4) confidenceBuckets.medium++;
+    else if (report.confidence_score < 0.6) confidenceBuckets.medium++;
+    else if (report.confidence_score < 0.8) confidenceBuckets.high++;
+    else confidenceBuckets.veryHigh++;
+  });
+
+  const reportTypeStats = Array.from(reportTypeMap.entries()).map(([_id, count]) => ({ _id, count }));
+  const avgConfidence = allReports && allReports.length > 0 ? totalConfidence / allReports.length : 0;
+
+  // Get recent reports
+  const { data: recentReports, error: recentError } = await supabase
+    .from(Tables.AI_REPORTS)
+    .select('id, report_type, summary, confidence_score, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (recentError) {
+    throw recentError;
+  }
 
   res.json({
     totalReports,
     reportTypeStats,
-    confidenceStats: confidenceStats[0] || {},
-    confidenceDistribution,
-    recentReports
+    confidenceStats: {
+      avgConfidence,
+      maxConfidence: allReports && allReports.length > 0 ? maxConfidence : 0,
+      minConfidence: allReports && allReports.length > 0 ? minConfidence : 0
+    },
+    confidenceDistribution: Object.entries(confidenceBuckets).map(([key, count]) => ({ _id: key, count })),
+    recentReports: recentReports || []
   });
 }));
 
@@ -265,21 +371,109 @@ router.get('/analytics/recommendations', authenticate, authorizeAllRoles, asyncH
   const minConfidence = parseFloat(req.query.minConfidence as string) || 0.7;
   const reportType = req.query.reportType as string;
 
-  const filter: any = {
-    confidenceScore: { $gte: minConfidence }
-  };
-  if (reportType) filter.reportType = reportType;
+  let query = supabase
+    .from(Tables.AI_REPORTS)
+    .select('id, report_type, summary, recommendations, confidence_score, created_at, generated_for_type, generated_for_id')
+    .gte('confidence_score', minConfidence)
+    .order('confidence_score', { ascending: false })
+    .order('created_at', { ascending: false });
 
-  const recommendations = await AiReport.find(filter)
-    .sort({ confidenceScore: -1, createdAt: -1 })
-    .select('reportType summary recommendations confidenceScore createdAt generatedForType generatedForId');
+  if (reportType) {
+    query = query.eq('report_type', reportType);
+  }
+
+  const { data: recommendations, error } = await query;
+
+  if (error) {
+    throw error;
+  }
 
   res.json({
-    recommendations,
+    recommendations: recommendations || [],
     filter: { minConfidence, reportType }
   });
 }));
 
+// Get dashboard insights
+router.get('/dashboard/insights', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
+  // Get recent reports
+  const { data: recentReports, error: recentError } = await supabase
+    .from(Tables.AI_REPORTS)
+    .select('id, report_type, summary, confidence_score, created_at')
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (recentError) {
+    throw recentError;
+  }
+
+  // Get all reports for aggregation
+  const { data: allReports, error: allError } = await supabase
+    .from(Tables.AI_REPORTS)
+    .select('*');
+
+  if (allError) {
+    throw allError;
+  }
+
+  // Calculate reports by type
+  const typeMap = new Map();
+  let totalConfidence = 0;
+
+  allReports?.forEach((report: any) => {
+    typeMap.set(report.report_type, (typeMap.get(report.report_type) || 0) + 1);
+    totalConfidence += report.confidence_score;
+  });
+
+  const reportsByType = Array.from(typeMap.entries()).map(([_id, count]) => ({
+    _id,
+    count,
+    avgConfidence: allReports?.filter((r: any) => r.report_type === _id)
+      .reduce((sum: number, r: any) => sum + r.confidence_score, 0) / count
+  })).sort((a, b) => b.count - a.count);
+
+  // Get high-priority insights
+  const { data: highPriorityInsights, error: highError } = await supabase
+    .from(Tables.AI_REPORTS)
+    .select('id, report_type, summary, recommendations, confidence_score, created_at')
+    .gte('confidence_score', 0.8)
+    .order('confidence_score', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (highError) {
+    throw highError;
+  }
+
+  const totalReports = allReports?.length || 0;
+  const avgConfidence = totalReports > 0 ? totalConfidence / totalReports : 0;
+
+  const formattedReports = recentReports?.map(report => ({
+    _id: report.id,
+    title: `${report.report_type} Report`,
+    summary: report.summary,
+    type: report.report_type,
+    confidenceScore: report.confidence_score,
+    createdAt: report.created_at
+  })) || [];
+
+  const formattedInsights = highPriorityInsights?.map(report => ({
+    _id: report.id,
+    title: `${report.report_type} - High Priority`,
+    description: report.summary,
+    recommendations: report.recommendations || [],
+    confidence: Math.round(report.confidence_score * 100),
+    priority: report.confidence_score >= 0.9 ? 'critical' : 'high',
+    createdAt: report.created_at
+  })) || [];
+
+  res.json({
+    totalReports,
+    avgConfidence,
+    recentReports: formattedReports,
+    reportsByType,
+    highPriorityInsights: formattedInsights
+  });
+}));
+
 export default router;
-
-

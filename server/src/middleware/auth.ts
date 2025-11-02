@@ -1,13 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { IUser, User } from '../models/User';
+import { User } from '../models/User';
 import { logger } from '../utils/logger';
+import { supabase, Tables } from '../utils/supabase';
 
 // Extend Express Request interface to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: IUser;
+      user?: User;
     }
   }
 }
@@ -44,10 +45,14 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
     const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
     
-    // Fetch user from database to ensure they still exist and get latest data
-    const user = await User.findById(decoded.userId).select('-passwordHash');
+    // Fetch user from Supabase to ensure they still exist and get latest data
+    const { data: user, error } = await supabase
+      .from(Tables.USERS)
+      .select('id, name, email, role, company, created_at, last_login')
+      .eq('id', decoded.userId)
+      .single();
     
-    if (!user) {
+    if (error || !user) {
       res.status(401).json({
         error: 'Access denied',
         details: 'User not found'
@@ -55,7 +60,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    req.user = user;
+    req.user = user as User;
     next();
   } catch (error) {
     logger.error('Authentication error:', error);
@@ -108,5 +113,3 @@ export const authorize = (...roles: string[]) => {
 export const authorizeAdmin = authorize('Admin');
 export const authorizeManagerOrAdmin = authorize('Admin', 'IT_Manager');
 export const authorizeAllRoles = authorize('Admin', 'IT_Manager', 'Technician');
-
-

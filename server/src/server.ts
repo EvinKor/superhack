@@ -7,8 +7,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { errorHandler, notFound } from './middleware/errorHandler';
-import { connectDB } from './utils/db';
 import { logger } from './utils/logger';
+import { testConnection } from './utils/supabase';
 
 // Import routes
 import activityLogRoutes from './routes/activityLogs';
@@ -20,7 +20,7 @@ import serviceEfficiencyRoutes from './routes/serviceEfficiency';
 import userRoutes from './routes/users';
 
 // Load environment variables
-dotenv.config();
+dotenv.config(); // Loads from current directory or parent directories
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -140,8 +140,11 @@ app.use(errorHandler);
 // Start server
 const startServer = async () => {
   try {
-    // Connect to database
-    await connectDB();
+    // Test Supabase connection
+    const connected = await testConnection();
+    if (!connected) {
+      throw new Error('Failed to connect to Supabase');
+    }
     
     // Start listening
     app.listen(PORT, () => {

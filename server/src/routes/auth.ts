@@ -4,8 +4,9 @@ import jwt from 'jsonwebtoken';
 import { authenticate } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
 import { validateUser } from '../middleware/validation';
-import { User } from '../models/User';
+import { User, UserInsert, UserUpdate } from '../models/User';
 import { logger } from '../utils/logger';
+import { supabase, Tables } from '../utils/supabase';
 
 const router = Router();
 
@@ -14,8 +15,17 @@ router.post('/register', validateUser, asyncHandler(async (req: Request, res: Re
   const { name, email, role, company, password } = req.body;
 
   // Check if user already exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
+  const { data: existingUsers, error: checkError } = await supabase
+    .from(Tables.USERS)
+    .select('id')
+    .eq('email', email.toLowerCase())
+    .limit(1);
+
+  if (checkError) {
+    throw checkError;
+  }
+
+  if (existingUsers && existingUsers.length > 0) {
     return res.status(400).json({
       error: 'User already exists',
       details: 'A user with this email already exists'
@@ -27,15 +37,24 @@ router.post('/register', validateUser, asyncHandler(async (req: Request, res: Re
   const passwordHash = await bcrypt.hash(password, saltRounds);
 
   // Create user
-  const user = new User({
-    name,
-    email,
+  const newUser: UserInsert = {
+    name: name.trim(),
+    email: email.toLowerCase().trim(),
     role,
-    company,
-    passwordHash
-  });
+    company: company.trim(),
+    password_hash: passwordHash,
+    created_at: new Date().toISOString()
+  };
 
-  await user.save();
+  const { data: user, error: insertError } = await supabase
+    .from(Tables.USERS)
+    .insert(newUser)
+    .select()
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
 
   // Generate JWT token
   const jwtSecret = process.env.JWT_SECRET;
@@ -44,7 +63,7 @@ router.post('/register', validateUser, asyncHandler(async (req: Request, res: Re
   }
 
   const token = jwt.sign(
-    { userId: user._id, email: user.email, role: user.role },
+    { userId: user.id, email: user.email, role: user.role },
     jwtSecret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
@@ -55,12 +74,12 @@ router.post('/register', validateUser, asyncHandler(async (req: Request, res: Re
     message: 'User registered successfully',
     token,
     user: {
-      id: user._id,
+      id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       company: user.company,
-      createdAt: user.createdAt
+      created_at: user.created_at
     }
   });
 }));
@@ -76,17 +95,28 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  // Find user and include password hash
-  const user = await User.findOne({ email }).select('+passwordHash');
-  if (!user) {
+  // Find user
+  const { data: users, error: queryError } = await supabase
+    .from(Tables.USERS)
+    .select('*')
+    .eq('email', email.toLowerCase())
+    .limit(1);
+
+  if (queryError) {
+    throw queryError;
+  }
+
+  if (!users || users.length === 0) {
     return res.status(401).json({
       error: 'Invalid credentials',
       details: 'Email or password is incorrect'
     });
   }
 
+  const user = users[0] as User;
+
   // Check password
-  const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
   if (!isPasswordValid) {
     return res.status(401).json({
       error: 'Invalid credentials',
@@ -95,8 +125,14 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Update last login
-  user.lastLogin = new Date();
-  await user.save();
+  const { error: updateError } = await supabase
+    .from(Tables.USERS)
+    .update({ last_login: new Date().toISOString() } as UserUpdate)
+    .eq('id', user.id);
+
+  if (updateError) {
+    logger.error('Failed to update last login:', updateError);
+  }
 
   // Generate JWT token
   const jwtSecret = process.env.JWT_SECRET;
@@ -105,7 +141,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   }
 
   const token = jwt.sign(
-    { userId: user._id, email: user.email, role: user.role },
+    { userId: user.id, email: user.email, role: user.role },
     jwtSecret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
@@ -116,12 +152,12 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     message: 'Login successful',
     token,
     user: {
-      id: user._id,
+      id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       company: user.company,
-      lastLogin: user.lastLogin
+      last_login: new Date().toISOString()
     }
   });
 }));
@@ -136,16 +172,21 @@ router.get('/me', authenticate, asyncHandler(async (req: Request, res: Response)
 // Update user profile
 router.put('/me', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const { name, company } = req.body;
-  const updates: any = {};
+  const updates: UserUpdate = {};
 
-  if (name) updates.name = name;
-  if (company) updates.company = company;
+  if (name) updates.name = name.trim();
+  if (company) updates.company = company.trim();
 
-  const user = await User.findByIdAndUpdate(
-    req.user!._id,
-    updates,
-    { new: true, runValidators: true }
-  ).select('-passwordHash');
+  const { data: user, error } = await supabase
+    .from(Tables.USERS)
+    .update(updates)
+    .eq('id', req.user!.id)
+    .select('id, name, email, role, company, created_at, last_login')
+    .single();
+
+  if (error) {
+    throw error;
+  }
 
   if (!user) {
     return res.status(404).json({
@@ -181,16 +222,27 @@ router.put('/change-password', authenticate, asyncHandler(async (req: Request, r
   }
 
   // Get user with password hash
-  const user = await User.findById(req.user!._id).select('+passwordHash');
-  if (!user) {
+  const { data: users, error: queryError } = await supabase
+    .from(Tables.USERS)
+    .select('*')
+    .eq('id', req.user!.id)
+    .limit(1);
+
+  if (queryError) {
+    throw queryError;
+  }
+
+  if (!users || users.length === 0) {
     return res.status(404).json({
       error: 'User not found',
       details: 'User could not be found'
     });
   }
 
+  const user = users[0] as User;
+
   // Verify current password
-  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
   if (!isCurrentPasswordValid) {
     return res.status(401).json({
       error: 'Invalid password',
@@ -203,8 +255,14 @@ router.put('/change-password', authenticate, asyncHandler(async (req: Request, r
   const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
 
   // Update password
-  user.passwordHash = newPasswordHash;
-  await user.save();
+  const { error: updateError } = await supabase
+    .from(Tables.USERS)
+    .update({ password_hash: newPasswordHash } as UserUpdate)
+    .eq('id', user.id);
+
+  if (updateError) {
+    throw updateError;
+  }
 
   logger.info(`Password changed for user: ${user.email}`);
 
@@ -223,5 +281,3 @@ router.post('/logout', authenticate, asyncHandler(async (req: Request, res: Resp
 }));
 
 export default router;
-
-
