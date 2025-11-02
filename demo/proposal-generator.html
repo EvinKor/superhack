@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Proposal Generator - Instant Proposals</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-panel, .result-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #475569;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .helper-text {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .button-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        .button-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .button-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .button-secondary {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .button-secondary:hover {
+            background: #059669;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-card {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-header {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 15px;
+        }
+
+        .result-metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .result-metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .metric-value {
+            color: #1e293b;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .price-display {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .price-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .price-amount {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .price-period {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .service-list {
+            list-style: none;
+        }
+
+        .service-item {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .service-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .service-details {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .service-price {
+            text-align: right;
+            font-weight: 600;
+            color: #10b981;
+        }
+
+        .success-banner {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .error-banner {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #ede9fe;
+            color: #6d28d9;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Proposal Generator</h1>
+            <p class="subtitle">Generate professional MSP proposals instantly with AI-powered service selection</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Left Panel: Form -->
+            <div class="form-panel">
+                <div class="panel-title">Create New Proposal</div>
+
+                <form id="proposalForm" onsubmit="generateProposal(event)">
+                    <div class="form-group">
+                        <label>Client Name *</label>
+                        <input 
+                            type="text" 
+                            id="clientName" 
+                            required
+                            placeholder="e.g., Acme Corporation"
+                            value="Acme Retail"
+                        />
+                        <div class="helper-text">Enter the client's company name</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Client Requirements *</label>
+                        <textarea 
+                            id="requirements" 
+                            required
+                            placeholder="Describe what the client needs..."
+                        >Need AWS cloud migration, SIEM security monitoring, regular vulnerability scanning, and 24/7 helpdesk support for 120 users. High uptime is critical for our e-commerce operations.</textarea>
+                        <div class="helper-text">
+                            Tip: Mention number of users, specific services needed (cloud, security, support), and any special requirements
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pricing Tier</label>
+                        <select id="pricingTier">
+                            <option value="TIER_STARTER">Starter (1-25 users) - No discount</option>
+                            <option value="TIER_STANDARD" selected>Standard (25-100 users) - 5% discount</option>
+                            <option value="TIER_PREMIUM">Premium (100-250 users) - 10% discount</option>
+                            <option value="TIER_ENTERPRISE">Enterprise (250+ users) - 15% discount</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Service Level Agreement (SLA)</label>
+                        <select id="slaLevel">
+                            <option value="SLA_BRONZE">Bronze - 99.0% uptime, 4hr response</option>
+                            <option value="SLA_SILVER">Silver - 99.5% uptime, 2hr response (+15%)</option>
+                            <option value="SLA_GOLD" selected>Gold - 99.9% uptime, 1hr response (+30%)</option>
+                            <option value="SLA_PLATINUM">Platinum - 99.95% uptime, 30min response (+50%)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="button-primary" id="generateBtn">
+                        🚀 Generate Proposal
+                    </button>
+                </form>
+
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                    <button onclick="loadOptions()" class="button-secondary" style="background: #6366f1;">
+                        📋 View Available Services
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="result-panel">
+                <div class="panel-title">Generated Proposal</div>
+                
+                <div id="resultContent">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📄</div>
+                        <p>Fill in the form and click "Generate Proposal"</p>
+                        <p style="margin-top: 10px;">The AI will analyze requirements and create a professional proposal instantly</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        let currentProposalId = null;
+
+        async function generateProposal(event) {
+            event.preventDefault();
+            
+            const btn = document.getElementById('generateBtn');
+            const resultDiv = document.getElementById('resultContent');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Generating...';
+            resultDiv.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>AI is analyzing requirements and building your proposal...</p>
+                </div>
+            `;
+
+            try {
+                const clientName = document.getElementById('clientName').value;
+                const requirements = document.getElementById('requirements').value;
+                const pricingTier = document.getElementById('pricingTier').value;
+                const slaLevel = document.getElementById('slaLevel').value;
+
+                const url = `${API_BASE}/proposals/quick-generate?` + new URLSearchParams({
+                    client_name: clientName,
+                    requirements: requirements,
+                    pricing_tier: pricingTier,
+                    sla_level: slaLevel
+                });
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to generate proposal');
+                }
+
+                currentProposalId = data.proposal_id;
+                displayProposal(data);
+
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error-banner">
+                        ❌ Error: ${error.message}
+                    </div>
+                    <p style="color: #64748b; margin-top: 10px;">
+                        Please check your inputs and try again. Make sure the server is running.
+                    </p>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Generate Proposal';
+            }
+        }
+
+        function displayProposal(data) {
+            const resultDiv = document.getElementById('resultContent');
+
+            const servicesList = data.services.map(service => `
+                <div class="service-item">
+                    <div>
+                        <div class="service-name">${service.name}</div>
+                        <div class="service-details">
+                            ${service.quantity} ${service.unit} × $${service.unit_price.toFixed(2)}
+                        </div>
+                    </div>
+                    <div class="service-price">
+                        $${service.monthly_cost.toFixed(2)}
+                    </div>
+                </div>
+            `).join('');
+
+            resultDiv.innerHTML = `
+                <div class="success-banner">
+                    ✅ Proposal Generated Successfully!
+                </div>
+
+                <div class="price-display">
+                    <div class="price-label">TOTAL MONTHLY INVESTMENT</div>
+                    <div class="price-amount">$${data.pricing.total_with_sla.toLocaleString()}</div>
+                    <div class="price-period">per month</div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-header">Proposal Details</div>
+                    <div class="result-metric">
+                        <span class="metric-label">Client</span>
+                        <span class="metric-value">${data.client_name}</span>
+                    </div>
+                    <div class="result-metric">
+                        <span class="metric-label">Proposal ID</span>
+                        <span class="metric-value">${data.proposal_id.substring(0, 8)}...</span>
+                    </div>
+                    <div class="result-metric">
+                        <span class="metric-label">Services Selected</span>
+                        <span class="metric-value">${data.summary.services_selected}</span>
+                    </div>
+                    <div class="result-metric">
+                        <span class="metric-label">Pricing Tier</span>
+                        <span class="metric-value">${data.summary.pricing_tier}</span>
+                    </div>
+                    <div class="result-metric">
+                        <span class="metric-label">SLA Level</span>
+                        <span class="metric-value">${data.summary.sla_level}</span>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-header">Pricing Breakdown</div>
+                    <div class="result-metric">
+                        <span class="metric-label">Base Subtotal</span>
+                        <span class="metric-value">$${data.pricing.subtotal_base.toLocaleString()}</span>
+                    </div>
+                    <div class="result-metric">
+                        <span class="metric-label">After Tier Discount (${data.pricing.tier_discount})</span>
+                        <span class="metric-value">$${data.pricing.subtotal_after_tier.toLocaleString()}</span>
+                    </div>
+                    <div class="result-metric">
+                        <span class="metric-label">SLA Premium (${data.pricing.sla_premium})</span>
+                        <span class="metric-value">$${data.pricing.total_with_sla.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-header">Services Included (${data.services.length})</div>
+                    <ul class="service-list">
+                        ${servicesList}
+                    </ul>
+                </div>
+
+                <div class="result-card">
+                    <div class="result-header">SLA Commitments</div>
+                    <div class="result-metric">
+                        <span class="metric-label">Response Time</span>
+                        <span class="metric-value">${data.sla_details.response_time}</span>
+                    </div>
+                    <div class="result-metric">
+                        <span class="metric-label">Uptime Guarantee</span>
+                        <span class="metric-value">${data.sla_details.uptime}</span>
+                    </div>
+                    <div class="result-metric">
+                        <span class="metric-label">Support Hours</span>
+                        <span class="metric-value">${data.sla_details.support_hours}</span>
+                    </div>
+                </div>
+
+                <button onclick="downloadProposal()" class="button-secondary">
+                    📥 Download Full Proposal (Markdown)
+                </button>
+
+                <button onclick="viewInBrowser()" class="button-secondary" style="background: #6366f1; margin-top: 10px;">
+                    👁️ Open in API Docs
+                </button>
+            `;
+        }
+
+        function downloadProposal() {
+            if (currentProposalId) {
+                window.open(`${API_BASE}/proposals/${currentProposalId}/download`, '_blank');
+            }
+        }
+
+        function viewInBrowser() {
+            window.open('http://localhost:8000/docs#/Proposals/generate_proposal_proposals_generate_post', '_blank');
+        }
+
+        async function loadOptions() {
+            try {
+                const response = await fetch(`${API_BASE}/proposals/options`);
+                const data = await response.json();
+
+                let html = '<div style="max-height: 500px; overflow-y: auto;">';
+                html += '<h3 style="margin-bottom: 15px;">Available Services</h3>';
+
+                for (const [category, services] of Object.entries(data.services_by_category)) {
+                    html += `<h4 style="color: #667eea; margin-top: 20px;">${category}</h4>`;
+                    for (const service of services) {
+                        html += `
+                            <div class="service-item" style="margin: 8px 0;">
+                                <div>
+                                    <div class="service-name">${service.name}</div>
+                                    <div class="service-details">${service.description}</div>
+                                    <div class="service-details">Keywords: ${service.keywords.join(', ')}</div>
+                                </div>
+                                <div class="service-price">
+                                    $${service.unit_price}/${service.unit}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                html += '</div>';
+
+                document.getElementById('resultContent').innerHTML = html;
+            } catch (error) {
+                alert('Error loading options: ' + error.message);
+            }
+        }
+
+        // Load a sample proposal on page load for demo purposes
+        window.addEventListener('load', () => {
+            console.log('AI Proposal Generator ready');
+            console.log('API Base:', API_BASE);
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,17 @@
+service_id,service_name,category,description,unit,unit_price,keywords,default_quantity
+S001,24/7 Infrastructure Monitoring,Monitoring & Management,Proactive monitoring of servers and network infrastructure,Device,25.00,"monitoring,infrastructure,network,servers,alerts",50
+S002,Patch Management,Security & Compliance,Automated patching and vulnerability management,Endpoint,8.50,"patch,patching,updates,vulnerability,security",50
+S003,SIEM Security Monitoring,Security & Compliance,Security Information and Event Management with threat detection,IP,150.00,"siem,security,threat,detection,log,monitoring",20
+S004,Backup & Disaster Recovery,Data Protection,Enterprise backup solution with disaster recovery capabilities,TB,200.00,"backup,disaster,recovery,dr,bdr,data protection",5
+S005,Cloud Infrastructure Management,Cloud Services,AWS/Azure cloud infrastructure management and optimization,Instance,180.00,"cloud,aws,azure,migration,infrastructure",10
+S006,Vulnerability Scanning,Security & Compliance,Regular vulnerability assessments and remediation guidance,IP,45.00,"vulnerability,scanning,assessment,pentest,security",50
+S007,Help Desk Support,Support Services,24/7 help desk support for end users,User,12.00,"helpdesk,support,service desk,ticketing,users",100
+S008,Email Security & Filtering,Security & Compliance,Advanced email security with spam and phishing protection,User,3.50,"email,spam,phishing,security,protection",100
+S009,Endpoint Detection & Response,Security & Compliance,Advanced endpoint security with EDR capabilities,Endpoint,18.00,"edr,endpoint,antivirus,malware,protection",50
+S010,Network Firewall Management,Security & Compliance,Managed firewall services with rule optimization,Firewall,350.00,"firewall,network,security,rules,utm",2
+S011,VPN & Remote Access,Infrastructure,Secure remote access solution for distributed workforce,User,8.00,"vpn,remote,access,work from home,wfh",100
+S012,Microsoft 365 Management,Cloud Services,Complete Microsoft 365 tenant administration,User,15.00,"microsoft,365,office,o365,m365,email,teams",100
+S013,Identity & Access Management,Security & Compliance,IAM solution with MFA and SSO capabilities,User,12.00,"iam,identity,mfa,sso,authentication,access",100
+S014,Database Administration,Infrastructure,Managed database services (SQL/NoSQL),Database,400.00,"database,sql,nosql,db,mysql,postgres,mongodb",3
+S015,Application Performance Monitoring,Monitoring & Management,APM with real-time application insights,Application,250.00,"apm,application,performance,monitoring,observability",5
+

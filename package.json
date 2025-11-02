@@ -4,11 +4,12 @@
   "description": "AI-driven financial growth and service efficiency platform for MSPs",
   "main": "start-dev.js",
   "scripts": {
+    "dev": "node start-dev.js",
     "start": "node start-dev.js",
-    "backend": "cd backend && npm run dev",
+    "backend": "cd server && npm run dev",
     "frontend": "cd frontend && npm start",
-    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
-    "seed": "cd backend && npm run seed",
+    "install-all": "npm install && cd server && npm install && cd ../frontend && npm install",
+    "seed": "cd server && npm run seed",
     "build": "cd frontend && npm run build"
   },
   "keywords": [

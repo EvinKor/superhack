@@ -7,8 +7,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { errorHandler, notFound } from './middleware/errorHandler';
-import { connectDB } from './utils/db';
 import { logger } from './utils/logger';
+import { testConnection } from './utils/supabase';
 
 // Import routes
 import activityLogRoutes from './routes/activityLogs';
@@ -20,7 +20,7 @@ import serviceEfficiencyRoutes from './routes/serviceEfficiency';
 import userRoutes from './routes/users';
 
 // Load environment variables
-dotenv.config();
+dotenv.config(); // Loads from current directory or parent directories
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -39,18 +39,23 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Rate limiting
+// Rate limiting (relaxed for development)
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || (process.env.NODE_ENV === 'development' ? '1000' : '100')), // Higher limit in dev
   message: {
     error: 'Too many requests',
     details: 'Too many requests from this IP, please try again later'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: (req) => process.env.NODE_ENV === 'development' // Skip rate limiting in development
 });
-app.use(limiter);
+
+// Only apply rate limiting in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(limiter);
+}
 
 // Compression middleware
 app.use(compression());
@@ -104,6 +109,15 @@ app.get('/manifest.json', (req, res) => {
   });
 });
 
+// Suppress common browser/dev tool 404s
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
+  res.status(204).end();
+});
+
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 // API documentation endpoint
 app.get('/api', (req, res) => {
   res.json({
@@ -131,8 +145,11 @@ app.use(errorHandler);
 // Start server
 const startServer = async () => {
   try {
-    // Connect to database
-    await connectDB();
+    // Test Supabase connection
+    const connected = await testConnection();
+    if (!connected) {
+      throw new Error('Failed to connect to Supabase');
+    }
     
     // Start listening
     app.listen(PORT, () => {

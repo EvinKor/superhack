@@ -16,21 +16,133 @@ const ServiceEfficiency = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
 
-  useEffect(() => {
-    fetchEfficiencyData();
-  }, [selectedPeriod]);
-
-  const fetchEfficiencyData = async () => {
+  const fetchEfficiencyData = React.useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/service-efficiency/dashboard/overview?period=${selectedPeriod}`);
       setEfficiencyData(response.data);
     } catch (error) {
       console.error('Error fetching efficiency data:', error);
+      // Use dummy data if API fails
+      setEfficiencyData(getDummyEfficiencyData());
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPeriod]);
+
+  // Dummy data generator for demo purposes
+  const getDummyEfficiencyData = () => ({
+    teamAverages: {
+      responseTime: 12.5,
+      resolutionTime: 4.2,
+      satisfaction: 4.4,
+      firstCallResolution: 78
+    },
+    totalTickets: 245,
+    resolvedTickets: 228,
+    resolutionRate: 93.1,
+    totalTechnicians: 8,
+    topPerformers: [
+      {
+        technicianId: {
+          firstName: 'Sarah',
+          lastName: 'Johnson',
+          email: 'sarah.johnson@company.com'
+        },
+        metrics: {
+          customerSatisfaction: 4.8,
+          averageResolutionTime: 3.2,
+          ticketsCompleted: 52,
+          firstCallResolution: 88
+        }
+      },
+      {
+        technicianId: {
+          firstName: 'Mike',
+          lastName: 'Thompson',
+          email: 'mike.thompson@company.com'
+        },
+        metrics: {
+          customerSatisfaction: 4.6,
+          averageResolutionTime: 3.5,
+          ticketsCompleted: 48,
+          firstCallResolution: 85
+        }
+      },
+      {
+        technicianId: {
+          firstName: 'Lisa',
+          lastName: 'Chen',
+          email: 'lisa.chen@company.com'
+        },
+        metrics: {
+          customerSatisfaction: 4.7,
+          averageResolutionTime: 3.4,
+          ticketsCompleted: 45,
+          firstCallResolution: 82
+        }
+      }
+    ],
+    needsImprovement: [
+      {
+        technicianId: {
+          firstName: 'John',
+          lastName: 'Davis',
+          email: 'john.davis@company.com'
+        },
+        metrics: {
+          customerSatisfaction: 3.8,
+          averageResolutionTime: 5.2,
+          ticketsCompleted: 28,
+          firstCallResolution: 65
+        }
+      },
+      {
+        technicianId: {
+          firstName: 'Emily',
+          lastName: 'Rodriguez',
+          email: 'emily.rodriguez@company.com'
+        },
+        metrics: {
+          customerSatisfaction: 4.0,
+          averageResolutionTime: 4.8,
+          ticketsCompleted: 32,
+          firstCallResolution: 70
+        }
+      }
+    ],
+    aiSuggestions: [
+      {
+        title: 'Optimize Response Times',
+        description: 'Focus on reducing initial response times for network-related issues',
+        impact: 'high',
+        confidence: 85
+      },
+      {
+        title: 'Training Opportunity',
+        description: 'Additional training recommended for software troubleshooting procedures',
+        impact: 'medium',
+        confidence: 78
+      },
+      {
+        title: 'Resource Allocation',
+        description: 'Consider redistributing workload during peak hours (9-11 AM)',
+        impact: 'medium',
+        confidence: 72
+      }
+    ],
+    trends: {
+      tasksCompleted: 8.5,
+      avgResponseTime: -12.3,
+      avgResolutionTime: -5.7
+    },
+    period: selectedPeriod,
+    is_demo: true
+  });
+
+  useEffect(() => {
+    fetchEfficiencyData();
+  }, [fetchEfficiencyData]);
 
   const MetricCard = ({ title, value, target, unit, icon: Icon, color = 'blue' }) => {
     const isAboveTarget = value >= target;
@@ -81,9 +193,15 @@ const ServiceEfficiency = () => {
     );
   }
 
-  const averages = efficiencyData?.teamAverages;
+  const averages = efficiencyData?.teamAverages || {
+    responseTime: 12.5,
+    resolutionTime: 4.2,
+    satisfaction: 4.4,
+    firstCallResolution: 78
+  };
   const topPerformers = efficiencyData?.topPerformers || [];
   const needsImprovement = efficiencyData?.needsImprovement || [];
+  const aiSuggestions = efficiencyData?.aiSuggestions || [];
 
   // Sample data for charts
   const performanceData = [
@@ -123,8 +241,22 @@ const ServiceEfficiency = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Service Efficiency</h1>
           <p className="text-gray-600">Monitor technician performance and service delivery</p>
+          {efficiencyData?.is_demo && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">
+              📊 Demo Data - Using sample efficiency metrics
+            </span>
+          )}
         </div>
         <div className="flex items-center space-x-4">
+          <button
+            onClick={() => window.open('http://localhost:8000/proposal-generator', '_blank')}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+          >
+            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            🤖 Generate AI Proposal
+          </button>
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
@@ -309,6 +441,44 @@ const ServiceEfficiency = () => {
                   <p className="text-sm text-gray-500">
                     Resolution: {technician.metrics?.averageResolutionTime || 0}h
                   </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AI Suggestions */}
+      {aiSuggestions.length > 0 && (
+        <div className="card p-6 bg-gradient-to-r from-purple-50 to-indigo-50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              🤖 AI-Powered Recommendations
+            </h3>
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+              AI Insights
+            </span>
+          </div>
+          <div className="space-y-3">
+            {aiSuggestions.map((suggestion, index) => (
+              <div key={index} className="p-4 bg-white rounded-lg border-l-4 border-purple-500">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-gray-900">{suggestion.title}</h4>
+                    <p className="text-sm text-gray-600 mt-1">{suggestion.description}</p>
+                  </div>
+                  <div className="ml-4 flex flex-col items-end">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      suggestion.impact === 'high' ? 'bg-red-100 text-red-800' :
+                      suggestion.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {suggestion.impact.toUpperCase()} IMPACT
+                    </span>
+                    <span className="text-xs text-gray-500 mt-1">
+                      Confidence: {suggestion.confidence}%
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

@@ -1,10 +1,10 @@
 import {
-    ArrowDownIcon,
-    ArrowTrendingDownIcon,
-    ArrowTrendingUpIcon,
-    ArrowUpIcon,
-    CurrencyDollarIcon,
-    LightBulbIcon
+  ArrowDownIcon,
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowUpIcon,
+  CurrencyDollarIcon,
+  LightBulbIcon
 } from '@heroicons/react/24/outline';
 import React, { useEffect, useState } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -15,11 +15,7 @@ const FinancialInsights = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
 
-  useEffect(() => {
-    fetchFinancialData();
-  }, [selectedPeriod]);
-
-  const fetchFinancialData = async () => {
+  const fetchFinancialData = React.useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/financial-insights/dashboard/summary?period=${selectedPeriod}`);
@@ -29,7 +25,11 @@ const FinancialInsights = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    fetchFinancialData();
+  }, [fetchFinancialData]);
 
   const MetricCard = ({ title, value, change, changeType, icon: Icon, color = 'blue' }) => {
     const colorClasses = {
@@ -113,6 +113,15 @@ const FinancialInsights = () => {
           <p className="text-gray-600">Analyze your financial performance and trends</p>
         </div>
         <div className="flex items-center space-x-4">
+          <button
+            onClick={() => window.open('http://localhost:8000/proposal-generator', '_blank')}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+          >
+            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            🤖 Generate AI Proposal
+          </button>
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}

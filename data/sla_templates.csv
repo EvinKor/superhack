@@ -1,0 +1,6 @@
+sla_id,name,response_time,uptime_guarantee,price_multiplier,support_hours
+SLA_BRONZE,Bronze Support,4 hours,99.0%,1.0,Business Hours (8x5)
+SLA_SILVER,Silver Support,2 hours,99.5%,1.15,Extended Hours (12x5)
+SLA_GOLD,Gold Support,1 hour,99.9%,1.30,24x7x365
+SLA_PLATINUM,Platinum Support,30 minutes,99.95%,1.50,24x7x365 + Dedicated TAM
+
