@@ -1,0 +1,6 @@
+tier_id,name,base_multiplier,min_monthly,max_users
+TIER_STARTER,Starter,1.0,1000,25
+TIER_STANDARD,Standard,0.95,2500,100
+TIER_PREMIUM,Premium,0.90,5000,250
+TIER_ENTERPRISE,Enterprise,0.85,10000,
+

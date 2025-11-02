@@ -1,7 +1,7 @@
 import { Request, Response, Router } from 'express';
 import { authenticate, authorizeAllRoles } from '../middleware/auth';
 import { asyncHandler } from '../middleware/errorHandler';
-import { validateClient, validateClientUpdate, validatePagination } from '../middleware/validation';
+import { validatePagination } from '../middleware/validation';
 import { ClientInsert, ClientUpdate } from '../models/Client';
 import { logger } from '../utils/logger';
 import { supabase, Tables } from '../utils/supabase';
@@ -50,8 +50,29 @@ router.get('/', authenticate, authorizeAllRoles, validatePagination, asyncHandle
   const total = count || 0;
   const totalPages = Math.ceil(total / limit);
 
+  // Transform snake_case to camelCase for frontend
+  const transformedClients = clients?.map(client => ({
+    _id: client.id,
+    id: client.id,
+    clientName: client.client_name,
+    industry: client.industry,
+    contactPerson: client.contact_person,
+    email: client.email,
+    phone: client.phone,
+    status: client.status,
+    tier: client.tier,
+    contractValue: client.contract_value,
+    contractStartDate: client.contract_start_date,
+    contractEndDate: client.contract_end_date,
+    address: client.address,
+    primaryContact: client.primary_contact,
+    notes: client.notes,
+    createdBy: client.created_by,
+    createdAt: client.created_at
+  })) || [];
+
   res.json({
-    clients: clients || [],
+    clients: transformedClients,
     pagination: {
       currentPage: page,
       totalPages,
@@ -80,20 +101,85 @@ router.get('/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Req
     throw error;
   }
 
-  res.json({ client });
+  // Transform snake_case to camelCase for frontend
+  const transformedClient = {
+    _id: client.id,
+    id: client.id,
+    clientName: client.client_name,
+    industry: client.industry,
+    contactPerson: client.contact_person,
+    email: client.email,
+    phone: client.phone,
+    status: client.status,
+    tier: client.tier,
+    contractValue: client.contract_value,
+    contractStartDate: client.contract_start_date,
+    contractEndDate: client.contract_end_date,
+    address: client.address,
+    primaryContact: client.primary_contact,
+    notes: client.notes,
+    createdBy: client.created_by,
+    createdAt: client.created_at
+  };
+
+  res.json({ client: transformedClient });
 }));
 
 // Create new client
-router.post('/', authenticate, authorizeAllRoles, validateClient, asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
+  // Log incoming data for debugging
+  logger.info('Received client creation request:', JSON.stringify(req.body, null, 2));
+  
+  // Support multiple frontend formats
+  const clientName = req.body.clientName || req.body.company || req.body.name;
+  const contactPerson = req.body.contactPerson || req.body.primaryContact?.name || req.body.name || 'Contact Person';
+  const email = req.body.email || req.body.primaryContact?.email;
+  const phone = req.body.phone || req.body.primaryContact?.phone || '000-000-0000';
+  
+  logger.info(`Parsed fields - clientName: ${clientName}, contactPerson: ${contactPerson}, email: ${email}, phone: ${phone}`);
+  
+  if (!clientName || !email) {
+    logger.error('Missing required fields', { clientName, email });
+    return res.status(400).json({
+      error: 'Missing required fields',
+      details: 'Company name and email are required',
+      received: {
+        hasClientName: !!clientName,
+        hasEmail: !!email,
+        hasPhone: !!phone,
+        hasContactPerson: !!contactPerson
+      }
+    });
+  }
+
+  // Map frontend status values to Supabase values
+  const statusMap: { [key: string]: 'active' | 'inactive' } = {
+    'active': 'active',
+    'inactive': 'inactive',
+    'prospect': 'active',      // Map prospect to active
+    'churned': 'inactive',     // Map churned to inactive
+    'onboarding': 'active'     // Map onboarding to active
+  };
+  
+  const mappedStatus = statusMap[req.body.status] || 'active';
+
   const newClient: ClientInsert = {
-    client_name: req.body.clientName.trim(),
-    industry: req.body.industry.trim(),
-    contact_person: req.body.contactPerson.trim(),
-    email: req.body.email.toLowerCase().trim(),
-    phone: req.body.phone.trim(),
-    status: req.body.status || 'active',
+    client_name: clientName.trim(),
+    industry: (req.body.industry || 'General').trim(),
+    contact_person: contactPerson.trim(),
+    email: email.toLowerCase().trim(),
+    phone: phone.trim(),
+    status: mappedStatus,
     created_by: req.user!.email,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    // Additional fields from frontend
+    tier: req.body.tier || 'bronze',
+    contract_value: req.body.contractValue || 0,
+    contract_start_date: req.body.contractStartDate || null,
+    contract_end_date: req.body.contractEndDate || null,
+    address: req.body.address || null,
+    primary_contact: req.body.primaryContact || null,
+    notes: req.body.notes || null
   };
 
   const { data: client, error } = await supabase
@@ -103,27 +189,76 @@ router.post('/', authenticate, authorizeAllRoles, validateClient, asyncHandler(a
     .single();
 
   if (error) {
-    throw error;
+    logger.error('Supabase insert error:', error);
+    return res.status(500).json({
+      error: 'Database error',
+      details: error.message,
+      hint: error.hint,
+      code: error.code
+    });
   }
 
   logger.info(`New client created by ${req.user!.email}: ${client.client_name}`);
 
+  // Transform snake_case to camelCase for frontend
+  const transformedClient = {
+    _id: client.id,
+    id: client.id,
+    clientName: client.client_name,
+    industry: client.industry,
+    contactPerson: client.contact_person,
+    email: client.email,
+    phone: client.phone,
+    status: client.status,
+    tier: client.tier,
+    contractValue: client.contract_value,
+    contractStartDate: client.contract_start_date,
+    contractEndDate: client.contract_end_date,
+    address: client.address,
+    primaryContact: client.primary_contact,
+    notes: client.notes,
+    createdBy: client.created_by,
+    createdAt: client.created_at
+  };
+
   res.status(201).json({
     message: 'Client created successfully',
-    client
+    client: transformedClient
   });
 }));
 
 // Update client
-router.put('/:id', authenticate, authorizeAllRoles, validateClientUpdate, asyncHandler(async (req: Request, res: Response) => {
+router.put('/:id', authenticate, authorizeAllRoles, asyncHandler(async (req: Request, res: Response) => {
   const updates: ClientUpdate = {};
 
-  if (req.body.clientName) updates.client_name = req.body.clientName.trim();
+  // Support both old and new frontend formats
+  const clientName = req.body.clientName || req.body.company || req.body.name;
+  const contactPerson = req.body.contactPerson || req.body.primaryContact?.name;
+  const email = req.body.email || req.body.primaryContact?.email;
+  const phone = req.body.phone || req.body.primaryContact?.phone;
+
+  // Map frontend status values to Supabase values
+  const statusMap: { [key: string]: 'active' | 'inactive' } = {
+    'active': 'active',
+    'inactive': 'inactive',
+    'prospect': 'active',
+    'churned': 'inactive',
+    'onboarding': 'active'
+  };
+
+  if (clientName) updates.client_name = clientName.trim();
   if (req.body.industry) updates.industry = req.body.industry.trim();
-  if (req.body.contactPerson) updates.contact_person = req.body.contactPerson.trim();
-  if (req.body.email) updates.email = req.body.email.toLowerCase().trim();
-  if (req.body.phone) updates.phone = req.body.phone.trim();
-  if (req.body.status) updates.status = req.body.status;
+  if (contactPerson) updates.contact_person = contactPerson.trim();
+  if (email) updates.email = email.toLowerCase().trim();
+  if (phone) updates.phone = phone.trim();
+  if (req.body.status) updates.status = statusMap[req.body.status] || 'active';
+  if (req.body.tier) updates.tier = req.body.tier;
+  if (req.body.contractValue !== undefined) updates.contract_value = req.body.contractValue;
+  if (req.body.contractStartDate) updates.contract_start_date = req.body.contractStartDate;
+  if (req.body.contractEndDate) updates.contract_end_date = req.body.contractEndDate;
+  if (req.body.address) updates.address = req.body.address;
+  if (req.body.primaryContact) updates.primary_contact = req.body.primaryContact;
+  if (req.body.notes) updates.notes = req.body.notes;
 
   const { data: client, error } = await supabase
     .from(Tables.CLIENTS)
@@ -144,9 +279,30 @@ router.put('/:id', authenticate, authorizeAllRoles, validateClientUpdate, asyncH
 
   logger.info(`Client updated by ${req.user!.email}: ${client.client_name}`);
 
+  // Transform snake_case to camelCase for frontend
+  const transformedClient = {
+    _id: client.id,
+    id: client.id,
+    clientName: client.client_name,
+    industry: client.industry,
+    contactPerson: client.contact_person,
+    email: client.email,
+    phone: client.phone,
+    status: client.status,
+    tier: client.tier,
+    contractValue: client.contract_value,
+    contractStartDate: client.contract_start_date,
+    contractEndDate: client.contract_end_date,
+    address: client.address,
+    primaryContact: client.primary_contact,
+    notes: client.notes,
+    createdBy: client.created_by,
+    createdAt: client.created_at
+  };
+
   res.json({
     message: 'Client updated successfully',
-    client
+    client: transformedClient
   });
 }));
 
